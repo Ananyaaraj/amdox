@@ -84,18 +84,20 @@ function setupApp(app: INestApplication) {
 
 // Express server instance for Vercel
 const server = express();
-let cachedApp: any;
+let cachedServerPromise: Promise<any> | null = null;
 
 async function bootstrapVercel(expressInstance: any) {
-  if (!cachedApp) {
-    const app = await NestFactory.create(AppModule, new ExpressAdapter(expressInstance), {
-      logger: ["error", "warn", "log"],
-    });
-    setupApp(app);
-    await app.init();
-    cachedApp = app;
+  if (!cachedServerPromise) {
+    cachedServerPromise = (async () => {
+      const app = await NestFactory.create(AppModule, new ExpressAdapter(expressInstance), {
+        logger: ["error", "warn", "log"],
+      });
+      setupApp(app);
+      await app.init();
+      return app;
+    })();
   }
-  return cachedApp;
+  return cachedServerPromise;
 }
 
 // Local bootstrap

@@ -1,5 +1,4 @@
 <<<<<<< HEAD
-<<<<<<< HEAD
 # Amdox ERP — AI-Powered Cloud ERP Suite
 
 > Enterprise AI-Powered Cloud ERP Suite | AMX-ERP-2026-04 | Version 1.0
@@ -320,6 +319,3 @@ MIT © 2026 Amdox Technologies
 =======
 # Amdox-intern
 >>>>>>> 0bc63e7825efe1ad9f32347900b1cb5c07bba17b
-=======
-# amdox
->>>>>>> 6e01c064b9096b41270031959d30ee60087d01c6

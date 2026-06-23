@@ -1,0 +1,82 @@
+## Amdox ERP – Helm Chart Values
+## Deploy: helm install amdox . -f values.yaml
+
+global:
+  imageRegistry: ghcr.io/your-org
+  imagePullPolicy: IfNotPresent
+  environment: production
+
+api:
+  image: amdox-erp-api
+  tag: latest
+  replicas: 2
+  port: 3001
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits:   { cpu: "1000m", memory: "1Gi" }
+  env:
+    NODE_ENV: production
+    API_PORT: "3001"
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 70
+
+web:
+  image: amdox-erp-web
+  tag: latest
+  replicas: 2
+  port: 3000
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "500m", memory: "512Mi" }
+
+mlService:
+  image: amdox-erp-ml-service
+  tag: latest
+  replicas: 1
+  port: 8000
+  resources:
+    requests: { cpu: "500m", memory: "1Gi" }
+    limits:   { cpu: "2000m", memory: "4Gi" }
+
+postgresql:
+  enabled: false  # Use external RDS Aurora
+  external:
+    host: your-rds-endpoint.amazonaws.com
+    port: 5432
+    database: amdox_erp
+
+redis:
+  enabled: false  # Use external ElastiCache
+  external:
+    host: your-elasticache-endpoint.amazonaws.com
+    port: 6379
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+  hosts:
+    - host: erp.amdox.com
+      paths:
+        - path: /api
+          service: api
+          port: 3001
+        - path: /
+          service: web
+          port: 3000
+  tls:
+    - secretName: amdox-tls
+      hosts: [erp.amdox.com]
+
+serviceAccount:
+  create: true
+  name: amdox-erp
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

@@ -1,5 +1,5 @@
 import { NestFactory } from "@nestjs/core";
-import { ValidationPipe, Logger } from "@nestjs/common";
+import { ValidationPipe, Logger, INestApplication } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import helmet from "helmet";
@@ -9,15 +9,11 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
 import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
+import { ExpressAdapter } from "@nestjs/platform-express";
+import express from "express";
 
-async function bootstrap() {
-  const logger = new Logger("Bootstrap");
-  const app = await NestFactory.create(AppModule, {
-    logger: ["error", "warn", "log", "debug"],
-  });
-
+function setupApp(app: INestApplication) {
   const configService = app.get(ConfigService);
-  const port = configService.get<number>("API_PORT", 3001);
   const corsOrigins = configService.get<string>("CORS_ORIGINS", "http://localhost:3000");
 
   // Security
@@ -84,8 +80,36 @@ async function bootstrap() {
   SwaggerModule.setup("api-docs", app, document, {
     swaggerOptions: { persistAuthorization: true },
   });
+}
 
-  // Health endpoints (no prefix)
+// Express server instance for Vercel
+const server = express();
+let cachedApp: any;
+
+async function bootstrapVercel(expressInstance: any) {
+  if (!cachedApp) {
+    const app = await NestFactory.create(AppModule, new ExpressAdapter(expressInstance), {
+      logger: ["error", "warn", "log"],
+    });
+    setupApp(app);
+    await app.init();
+    cachedApp = app;
+  }
+  return cachedApp;
+}
+
+// Local bootstrap
+async function bootstrapLocal() {
+  const logger = new Logger("Bootstrap");
+  const app = await NestFactory.create(AppModule, {
+    logger: ["error", "warn", "log", "debug"],
+  });
+
+  setupApp(app);
+
+  const configService = app.get(ConfigService);
+  const port = configService.get<number>("API_PORT", 3001);
+
   await app.listen(port);
 
   logger.log(`🚀 Amdox ERP API running on: http://localhost:${port}`);
@@ -93,4 +117,15 @@ async function bootstrap() {
   logger.log(`🔍 GraphQL: http://localhost:${port}/graphql`);
 }
 
-bootstrap();
+// Determine environment and run/export accordingly
+const isVercel = !!process.env.VERCEL;
+
+if (!isVercel) {
+  bootstrapLocal();
+}
+
+// Export default handler for Vercel serverless environment
+export default async (req: any, res: any) => {
+  await bootstrapVercel(server);
+  server(req, res);
+};

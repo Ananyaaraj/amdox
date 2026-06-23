@@ -39,21 +39,44 @@ import { SearchModule } from "./common/search/search.module";
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const redisUrl = config.get<string>("REDIS_URL");
+        const isVercel = !!process.env.VERCEL;
+
+        let connectionOpts: any;
+
         if (redisUrl) {
-          const url = new URL(redisUrl);
-          return {
-            connection: {
+          try {
+            const url = new URL(redisUrl);
+            connectionOpts = {
               host: url.hostname,
               port: parseInt(url.port || "6379", 10),
               password: url.password || undefined,
-            },
-          };
-        }
-        return {
-          connection: {
+            };
+          } catch {
+            connectionOpts = {
+              host: config.get("REDIS_HOST", "localhost"),
+              port: config.get<number>("REDIS_PORT", 6379),
+              password: config.get("REDIS_PASSWORD"),
+            };
+          }
+        } else {
+          connectionOpts = {
             host: config.get("REDIS_HOST", "localhost"),
             port: config.get<number>("REDIS_PORT", 6379),
             password: config.get("REDIS_PASSWORD"),
+          };
+        }
+
+        return {
+          connection: {
+            ...connectionOpts,
+            maxRetriesPerRequest: null,
+            enableOfflineQueue: false,
+            retryStrategy: (times: number) => {
+              if (isVercel && !redisUrl) {
+                return null; // Stop retrying immediately to prevent Vercel functions from hanging/timing out
+              }
+              return Math.min(times * 100, 3000);
+            },
           },
         };
       },

@@ -14,7 +14,7 @@ import { LocalStrategy } from "./strategies/local.strategy";
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get("JWT_SECRET"),
+        secret: config.get("JWT_SECRET") || "fallback_jwt_secret_key_change_in_production_min_32_chars",
         signOptions: { expiresIn: config.get("JWT_EXPIRES_IN", "15m") },
       }),
     }),

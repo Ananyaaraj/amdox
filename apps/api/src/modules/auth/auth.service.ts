@@ -77,7 +77,7 @@ export class AuthService {
   async refreshToken(refreshToken: string) {
     try {
       const payload = this.jwt.verify(refreshToken, {
-        secret: this.config.get("JWT_REFRESH_SECRET"),
+        secret: this.config.get("JWT_REFRESH_SECRET") || "fallback_jwt_refresh_secret_key_change_in_production_min_32_chars",
       });
       const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
       if (!user || !user.isActive) throw new UnauthorizedException();
@@ -110,7 +110,7 @@ export class AuthService {
   private generateTokens(payload: object) {
     const accessToken = this.jwt.sign(payload);
     const refreshToken = this.jwt.sign(payload, {
-      secret: this.config.get("JWT_REFRESH_SECRET"),
+      secret: this.config.get("JWT_REFRESH_SECRET") || "fallback_jwt_refresh_secret_key_change_in_production_min_32_chars",
       expiresIn: this.config.get("JWT_REFRESH_EXPIRES_IN", "7d"),
     });
     return { accessToken, refreshToken };
